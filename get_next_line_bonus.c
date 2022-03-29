@@ -6,142 +6,111 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/03/27 21:39:47 by hehwang           #+#    #+#             */
-/*   Updated: 2022/03/28 12:32:37 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/03/29 22:14:12 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line_bonus.h"
 
-void	flash_buf(char buf[], size_t end)
-{
-	size_t	i;
+#define MODIFY 1
+#define NEWLINE 2
+#define END 0
 
-	i = 0;
-	while (i + end < BUFFER_SIZE)
+typedef struct s_list
+{
+	char			*str;
+	int				fd;
+	int				state;
+	struct s_list	*next;
+	struct s_list	*next_head;
+}	t_list;
+
+t_list *gnl_newstr(char buf[], ssize_t len, int state)
+{
+	t_list	*node;
+	ssize_t	i;
+
+	node = (t_list *)malloc(sizeof(t_list) * 1);
+	if (!node)
+		return (NULL);
+	node->str = (char *)malloc(sizeof(char) * (len + 1));
+	if (!node->str)
 	{
-		buf[i] = buf[end + i];
-		i++;
+		free(node);
+		return (NULL);
 	}
-	while (i < BUFFER_SIZE)
-		buf[i++] = 0;
+	i = -1;
+	while (++i < len)
+		node->str[i] = buf[i];
+	node->str[i] = '\0';
+	node->next = NULL;
+	return (node);
 }
 
-void free_all(char *origin, char *add)
+int	set_lst(t_list *head, char	buf[], ssize_t read_bytes)
 {
-	if (origin != NULL)
-		free(origin);
-	if (add != NULL)
-		free(add);
-}
+	ssize_t	i;
+	ssize_t	len;
 
-char *make_newline(char *origin, char buf[])
-{
-	char	*new_line;
-	char	*add;
-	size_t	end_i;
-
-	end_i = find_end(buf);
-	add = gnl_strndup(buf, end_i + 1);
-	if (!add)
-		return (NULL);
-	flash_buf(buf, end_i);
-	new_line = gnl_strjoin(origin, add);
-	free_all(origin, add);
-	if (!new_line)
-		return (NULL);
-	return (new_line);
-}
-
-char	*new_buf()
-{
-	char	*buf;
-	size_t	i;
-
-	buf = (char *)malloc(sizeof(char) * BUFFER_SIZE);
-	if (!buf)
-		return (NULL);
 	i = 0;
-	while (i < BUFFER_SIZE)
-		buf[i++] = 0;
-	return (buf);
+	len = 0;
+	while (i + len < read_bytes)
+	{
+		if (buf[i + len] == '\n')
+		{
+			newstr = ;
+			if(!gnl_addstr(head, gnl_newstr(&buf[i], ++len, NEWLINE)))
+				return (0);
+			i += len;
+			len = 0;
+		}
+		else
+			len++;
+	}
+	if (i < read_bytes)
+	{
+		new = gnl_newlst(&buf[i], len, MODIFY);
+		if(!gnl_addstr(head, gnl_newstr(&buf[i], len, NEWLINE)))
+			return (0);
+	}
+	return (1);
 }
 
 char	*get_next_line(int fd)
 {
-	char		*line;
-	static char	*buf[OPEN_MAX];
-	ssize_t		read_bytes;
+	static t_list	*fd_lst;
+	t_list			*head;
+	char			buf[BUFFER_SIZE];
+	ssize_t			read_bytes;
 
-	if (fd < 0)
-		return (NULL);
-	if (!buf[fd])
-	{
-		buf[fd] = new_buf();
-		if (!buf[fd])
+	// find fd
+	head = find_fd(&fd_lst, fd);
+	if (!head)
+		head  = new_fd(&fd_lst, fd);
+	while (1)
+	{	
+		read_bytes = read(fd, buf, BUFFER_SIZE);
+		if (read_bytes < 0)
 			return (NULL);
-	}
-	line = NULL;
-	while (!is_newline(line))
-	{
-		if (!buf[fd][0])	// buf is empty
+		if(read_bytes == 0 && !head->next)
 		{
-			read_bytes = read(fd, buf[fd], BUFFER_SIZE);
-			if (read_bytes < 0)
-			{
-				if (line != NULL)
-					free(line);
-				if (buf[fd] != NULL)
-					free(buf[fd]);
-				return (NULL);
-			}
-			else if (read_bytes == 0)
-			{
-				if (buf[fd] != NULL)
-					free(buf[fd]);
-				return (line);
-			}
-		}
-		line = make_newline(line, buf[fd]);
-		if (!line)
+			del_fd(&fd_lst, fd);
 			return (NULL);
+		}
+		if (!set_lst(head, buf, read_bytes))
+			return (NULL);
+		if (head->next->state == MODIFY)
+			modify(head);
+		if (head->next->state == NEWLINE)
+		{
+			// 노드 삭제 하고 free
+			return (pop(head));
+		}
 	}
-	return (line);
-}
-
-#include <stdio.h>
-#include <fcntl.h>
-
-void	ft_putstr_fd(char *s, int fd)
-{
-	if (!s || fd < 0)
-		return ;
-	while (*s != '\0')
-		write(fd, s++, 1);
-}
-
-int	main(int ac, char **av)
-{
-	int		temp;
-	int		fd[10];
-	char	*line;
-	int		i;
-
-	i = 1;
-	fd[0] = 0;
-	while (i < ac)
-	{
-		fd[i] = open(av[i], O_RDONLY);
-		i++;
-	}
-	i = 1;
-	while ((line = get_next_line(fd[i%(ac)])) != NULL)
-	{
-		ft_putstr_fd(line, 1);
-		free(line);
-		i++;
-	}
-	i = 1;
-	while (i < ac)
-		close(fd[i++]);
-	return (0);
+	// fd head 추가
+	// lst pop 있으면 -> return
+	// 없으면
+	// read (pop 할 때 까지)
+	// set_lst (split -> add lst back);
+	// return ();
 }
