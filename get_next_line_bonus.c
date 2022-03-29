@@ -6,7 +6,7 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/03/27 21:39:47 by hehwang           #+#    #+#             */
-/*   Updated: 2022/03/29 22:14:12 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/03/29 22:58:58 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,6 @@
 
 #define MODIFY 1
 #define NEWLINE 2
-#define END 0
 
 typedef struct s_list
 {
@@ -25,7 +24,23 @@ typedef struct s_list
 	struct s_list	*next_head;
 }	t_list;
 
-t_list *gnl_newstr(char buf[], ssize_t len, int state)
+void free_all(t_list **head)
+{
+	if (head != NULL)
+	{
+		while (*head != NULL)
+		{
+			if ((*head)->str != NULL)
+				free((*head)->str);
+			tmp = (*head)->next;
+			free(*head);
+			*head = NULL;
+			*head = tmp;
+		}
+	}
+}
+
+t_list	*gnl_newlst(char buf[], ssize_t len, int state)
 {
 	t_list	*node;
 	ssize_t	i;
@@ -47,7 +62,23 @@ t_list *gnl_newstr(char buf[], ssize_t len, int state)
 	return (node);
 }
 
-int	set_lst(t_list *head, char	buf[], ssize_t read_bytes)
+int	gnl_lstadd_back(t_list **head, t_list *new)
+{
+	t_list *tmp;
+
+	if (!new)
+	{
+		free_all(head);
+		return (0);
+	}
+	tmp = *head;
+	while (tmp->next != NULL)
+		tmp = tmp->next;
+	tmp->next = new;
+	return (1);
+}
+
+int	gnl_lstsplit_buf(t_list **head, char buf[], ssize_t read_bytes)
 {
 	ssize_t	i;
 	ssize_t	len;
@@ -58,8 +89,7 @@ int	set_lst(t_list *head, char	buf[], ssize_t read_bytes)
 	{
 		if (buf[i + len] == '\n')
 		{
-			newstr = ;
-			if(!gnl_addstr(head, gnl_newstr(&buf[i], ++len, NEWLINE)))
+			if(!gnl_lstadd_back(head, gnl_newlst(&buf[i], ++len, NEWLINE)))
 				return (0);
 			i += len;
 			len = 0;
@@ -70,10 +100,23 @@ int	set_lst(t_list *head, char	buf[], ssize_t read_bytes)
 	if (i < read_bytes)
 	{
 		new = gnl_newlst(&buf[i], len, MODIFY);
-		if(!gnl_addstr(head, gnl_newstr(&buf[i], len, NEWLINE)))
+		if(!gnl_lstadd_back(head, gnl_newlst(buf[i], len, NEWLINE)))
 			return (0);
 	}
 	return (1);
+}
+
+void	gnl_lstmodify(t_list **head)
+{
+	t_list *new_line;
+
+	new_line = *head;
+	while (new_line)
+	{
+		if (new_line->state == NEW_LINE)
+			break ;
+		new_line = new_line->next;
+	}
 }
 
 char	*get_next_line(int fd)
@@ -97,7 +140,7 @@ char	*get_next_line(int fd)
 			del_fd(&fd_lst, fd);
 			return (NULL);
 		}
-		if (!set_lst(head, buf, read_bytes))
+		if (!gnl_lstsplit_buf(&head, buf, read_bytes))
 			return (NULL);
 		if (head->next->state == MODIFY)
 			modify(head);
