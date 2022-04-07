@@ -6,31 +6,22 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/04/07 14:27:10 by hehwang           #+#    #+#             */
-/*   Updated: 2022/04/07 18:25:51 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/04/07 22:02:49 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
-size_t	gnl_strlcat(char **str, char buf[], size_t cat_len)
+char	*gnl_strlcat(t_list **curr, size_t cat_len)
 {
 	char	*dst;
 	char	*src;
-	size_t	src_len;
 	size_t	i;
 
-	src = *str;
-	src_len = 0;
-	if (src != NULL)
-		while (src[src_len] != '\0')
-			src_len++;
-	dst = (char *)malloc(src_len + cat_len + 1);
+	src = (*curr)->line;
+	dst = (char *)malloc((*curr)->len + cat_len + 1);
 	if (!dst)
-	{
-		free(src);
-		*str = NULL;
-		return (0);
-	}
+		return (NULL);
 	i = 0;
 	if (src != NULL)
 	{
@@ -39,16 +30,16 @@ size_t	gnl_strlcat(char **str, char buf[], size_t cat_len)
 			dst[i] = src[i];
 			i++;
 		}
-		free(src);
+		//free(src);
 	}
-	while (i < src_len + cat_len)
+	while (i < (*curr)->len + cat_len)
 	{
-		dst[i] = buf[i - src_len];
+		dst[i] = (*curr)->buf[i - (*curr)->len];
 		i++;
 	}
 	dst[i] = '\0';
-	*str = dst;
-	return (src_len + cat_len);
+	(*curr)->len += cat_len;
+	return (dst);
 }
 
 t_list	*gnl_newlst(int fd)
@@ -61,7 +52,7 @@ t_list	*gnl_newlst(int fd)
 	lst->fd = fd;
 	lst->line = NULL;
 	lst->len = 0;
-	flash_buf(lst->buf, BUFFER_SIZE);
+	flush_buf(lst->buf, BUFFER_SIZE);
 	lst->next = NULL;
 	return (lst);
 }
@@ -94,14 +85,16 @@ size_t	find_line_end(char buf[])
 	return (BUFFER_SIZE);
 }
 
-void	flash_buf(char buf[], size_t end)
+void	flush_buf(char buf[], size_t len)
 {
 	size_t	i;
 
 	i = 0;
-	while (i + end < BUFFER_SIZE)
+	if (len == 0)
+		return ;
+	while (i + len < BUFFER_SIZE)
 	{
-		buf[i] = buf[end + i];
+		buf[i] = buf[len + i];
 		i++;
 	}
 	while (i < BUFFER_SIZE)

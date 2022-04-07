@@ -6,7 +6,7 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/03/27 20:40:05 by hehwang           #+#    #+#             */
-/*   Updated: 2022/04/07 15:39:24 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/04/07 21:51:03 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,11 +24,11 @@ typedef struct s_list {
 	struct s_list	*next;
 }	t_list;
 
-size_t	gnl_strlcat(char **str, char buf[], size_t cat_len);
+char	*gnl_strlcat(t_list **curr, size_t cat_len);
 t_list	*gnl_newlst(int fd);
 int		is_newline(char *str, size_t len);
 size_t	find_line_end(char buf[]);
-void	flash_buf(char buf[], size_t end);
+void	flush_buf(char buf[], size_t end);
 size_t	make_line(t_list **curr);
 t_list	*find_or_new_fd(t_list **fd_lst, int fd);
 char	*pop_fd(t_list **fd_lst, int fd, int read_bytes);
