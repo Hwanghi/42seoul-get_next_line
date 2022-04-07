@@ -1,179 +1,107 @@
-#include <unistd.h>
-#include <stdlib.h>
-#define BUFFER_SIZE 100
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2022/04/07 14:29:34 by hehwang           #+#    #+#             */
+/*   Updated: 2022/04/07 18:33:06 by hehwang          ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
 
-size_t	gnl_strlen(const char *s)
+#include "get_next_line.h"
+
+size_t	make_line(t_list **curr)
 {
-	size_t	len;
+	size_t	cat_len;
 
-	if (!s)
-		return (0);
-	len = 0;
-	while (s[len] != '\0')
-		len++;
-	return (len);
+	cat_len = find_line_end((*curr)->buf);
+	(*curr)->len = gnl_strlcat(&((*curr)->line), (*curr)->buf, cat_len);
+	flash_buf((*curr)->buf, cat_len);
+	return ((*curr)->len);
 }
 
-char	*gnl_strndup(const char *s1, size_t n)
+t_list	*find_or_new_fd(t_list **fd_lst, int fd)
 {
-	char	*dst;
-	size_t	i;
+	t_list *new;
+	t_list *curr;
 
-	dst = (char *)malloc(sizeof(char) * (n));
-	if (!dst)
+	new = gnl_newlst(fd);
+	if (!new)
 		return (NULL);
-	i = 0;
-	while (i + 1 < n)
+	if (*fd_lst == NULL)
 	{
-		dst[i] = s1[i];
-		i++;
+		*fd_lst = new;
+		return (*fd_lst);
 	}
-	dst[i] = '\0';
-	return (dst);
-}
-
-char	*gnl_strjoin(char const *s1, char const *s2)
-{
-	char	*dst;
-	size_t	dstsize;
-	size_t	i;
-
-	dstsize = gnl_strlen(s1) + gnl_strlen(s2) + 1;
-	dst = (char *)malloc(sizeof(char) * (dstsize));
-	if (!dst)
-		return (NULL);
-	i = 0;
-	if (s1 != NULL)
-		while (*s1 != '\0')
-			dst[i++] = *s1++;
-	if (s2 != NULL)
-		while (*s2 != '\0')
-			dst[i++] = *s2++;
-	dst[i] = '\0';
-	return (dst);
-}
-
-size_t	find_end(char buf[])
-{
-	size_t i;
-
-	i = 0;
-	while (buf[i] && i < BUFFER_SIZE)
+	curr = *fd_lst;
+	while (curr->next != NULL)
 	{
-		if (buf[i] == '\n')
+		if (curr->fd == fd)
 		{
-			i++;
-			return (i);
+			curr->line = NULL;
+			curr->len = 0;
+			return (curr);
 		}
-		i++;
+		curr = curr->next;
 	}
-	return (i);
+	curr->next = new;
+	return (new);
 }
 
-int	is_newline(char *line)
+char	*pop_fd(t_list **fd_lst, int fd, int read_bytes)
 {
-	if (!line)
-		return (0);
-	while (*line != '\0')
+	char	*line;
+	t_list	*prev;
+	t_list	*curr;
+
+	prev = NULL;
+	curr = *fd_lst;
+	while (curr != NULL)
 	{
-		if (*line == '\n')
-			return (1);
-		line++;
-	}
-	return (0);
-}
-
-void	flash_buf(char buf[], size_t end)
-{
-	size_t	i;
-
-	i = 0;
-	while (i + end < BUFFER_SIZE)
-	{
-		buf[i] = buf[end + i];
-		i++;
-	}
-	while (i < BUFFER_SIZE)
-		buf[i++] = 0;
-}
-
-void free_all(char *origin, char *add)
-{
-	if (origin != NULL)
-		free(origin);
-	if (add != NULL)
-		free(add);
-}
-
-char *make_newline(char *origin, char buf[])
-{
-	char	*new_line;
-	char	*add;
-	size_t	end_i;
-
-	end_i = find_end(buf);
-	add = gnl_strndup(buf, end_i + 1);
-	if (!add)
-		return (NULL);
-	flash_buf(buf, end_i);
-	new_line = gnl_strjoin(origin, add);
-	free_all(origin, add);
-	if (!new_line)
-		return (NULL);
-	return (new_line);
-}
-
-char	*get_next_line(int fd)
-{
-	char		*line;
-	static char	buf[BUFFER_SIZE];
-	ssize_t		read_bytes;
-
-	line = NULL;
-	while (!is_newline(line))
-	{
-		if (!buf[0])	// buf is empty
+		if (curr->fd == fd)
 		{
-			read_bytes = read(fd, buf, BUFFER_SIZE);
+			if (prev == NULL)
+				*fd_lst = curr->next;
+			else
+				prev->next = curr->next;
+			line = curr->line;
+			free(curr);
 			if (read_bytes < 0)
 			{
 				if (line != NULL)
 					free(line);
 				return (NULL);
 			}
-			else if (read_bytes == 0)
-				return (line);
+			return (line);
 		}
-		line = make_newline(line, buf);
-		if (!line)
-			return (NULL);
+		prev = curr;
+		curr = curr->next;
 	}
-	return (line);
+	return (NULL);
 }
 
-#include <stdio.h>
-#include <fcntl.h>
-
-void	ft_putstr_fd(char *s, int fd)
+char	*get_next_line(int fd)
 {
-	if (!s || fd < 0)
-		return ;
-	while (*s != '\0')
-		write(fd, s++, 1);
-}
+	static t_list	*fd_lst = NULL;
+	t_list			*curr;
+	ssize_t			read_bytes;
 
-int	main(int ac, char **av)
-{
-	int		temp;
-	int		fd;
-	char	*line;
-
-	fd = open(av[1], O_RDONLY);
-	while ((line = get_next_line(fd)) != NULL)
+	if (fd < 0)
+		return (NULL);
+	curr = find_or_new_fd(&fd_lst, fd);
+	if (!curr)
+		return (NULL);
+	while (!is_newline(curr->line, curr->len))
 	{
-		ft_putstr_fd(line, 1);
-		free(line);
+		if (!curr->buf[0])	// buf is empty
+		{
+			read_bytes = read(curr->fd, curr->buf, BUFFER_SIZE);
+			if (read_bytes <= 0)
+				return (pop_fd(&fd_lst, curr->fd, read_bytes));
+		}
+		make_line(&curr);
 	}
-	close(fd);
-	return (0);
+	return (curr->line);
 }
