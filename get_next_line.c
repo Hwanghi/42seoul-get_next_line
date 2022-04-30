@@ -6,7 +6,7 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/04/07 14:29:34 by hehwang           #+#    #+#             */
-/*   Updated: 2022/04/19 19:53:08 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/04/30 18:24:07 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,14 +19,14 @@ char	*make_newline(t_list *lst)
 	size_t	len;
 
 	len = len_newline(lst->save);
-	if (len == 0)
-		return (NULL);
+	tmp = lst->save;
 	newline = gnl_strldup(lst->save, len + 1);
 	if (!newline)
 		return (NULL);
 	lst->len -= len;
-	tmp = lst->save;
-	if (lst->len > 0)
+	if (lst->len == 0)
+		lst->save = NULL;
+	else if (lst->len > 0)
 	{
 		lst->save = gnl_strldup(&(lst->save[len]), lst->len + 1);
 		if (!lst->save)
@@ -36,15 +36,13 @@ char	*make_newline(t_list *lst)
 			return (NULL);
 		}
 	}
-	else
-		lst->save = NULL;
 	free(tmp);
 	return (newline);
 }
 
 t_list	*find_or_new_fd(t_list **lst, int fd)
 {
-	t_list *curr;
+	t_list	*curr;
 
 	if (*lst == NULL)
 	{
@@ -52,13 +50,15 @@ t_list	*find_or_new_fd(t_list **lst, int fd)
 		return (*lst);
 	}
 	curr = *lst;
-	while (curr != NULL)
+	while (curr->fd != fd)
 	{
-		if (curr->fd == fd)
-			return (curr);
+		if (curr->next == NULL)
+		{
+			curr->next = gnl_newlst(fd);
+			return (curr->next);
+		}
 		curr = curr->next;
 	}
-	curr = gnl_newlst(fd);
 	return (curr);
 }
 
@@ -90,20 +90,31 @@ void	*save_buf(t_list *lst, char *buf, size_t dstsize)
 	return (dst);
 }
 
-ssize_t	read_file(int fd, char *buf, t_list *lst)
+ssize_t	read_file(int fd, t_list *lst)
 {
 	ssize_t	res;
+	char	*buf;
 
-	res = 0;
-	while (len_newline(lst->save) >= lst->len)
+	buf = (char *)malloc(BUFFER_SIZE + 1);
+	if (!buf)
+		return (-1);
+	while (1)
 	{
 		res = read(fd, buf, BUFFER_SIZE);
 		if (res <= 0)
-			return (res);
+			break ;
 		buf[res] = '\0';
 		if (!save_buf(lst, buf, lst->len + res + 1))
-			return (-1);
+		{
+			res = -1;
+			break ;
+		}
+		if (len_newline(lst->save) < lst->len)
+			break ;
+		if (lst->save[lst->len - 1] == '\n')
+			break ;
 	}
+	free(buf);
 	return (res);
 }
 
@@ -111,7 +122,6 @@ char	*get_next_line(int fd)
 {
 	static t_list	*fd_lst = NULL;
 	t_list			*curr;
-	char			*buf;
 	ssize_t			res;
 
 	if (fd < 0)
@@ -119,21 +129,11 @@ char	*get_next_line(int fd)
 	curr = find_or_new_fd(&fd_lst, fd);
 	if (!curr)
 		return (NULL);
-	buf = (char *)malloc(BUFFER_SIZE + 1);
-	if (!buf)
-		return (NULL);
-	res = read_file(fd, buf, curr);
-	free(buf);
-	if (res < 0)
+	res = read_file(fd, curr);
+	if (res < 0 || (res == 0 && curr->save == NULL))
 	{
-		gnl_lstdelone(&curr, fd);
+		gnl_lstdelone(&fd_lst, fd);
 		return (NULL);
 	}
-	if (res == 0)
-		if (!curr->save)
-		{
-			gnl_lstdelone(&curr, fd);
-			return (NULL);
-		}
 	return (make_newline(curr));
 }

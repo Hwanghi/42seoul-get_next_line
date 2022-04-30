@@ -6,7 +6,7 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/04/07 14:27:10 by hehwang           #+#    #+#             */
-/*   Updated: 2022/04/19 19:29:03 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/04/30 18:07:16 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,8 +16,6 @@ size_t	len_newline(char const *s)
 {
 	size_t	i;
 
-	if (s == NULL)
-		return (0);
 	i = 0;
 	while (s[i] != '\0')
 	{
@@ -60,9 +58,11 @@ void	gnl_lstdelone(t_list **lst, int fd)
 				*lst = curr->next;
 			else
 				prev->next = curr->next;
-			free(curr->save);
+			if (curr->save != NULL)
+				free(curr->save);
+			curr->next = NULL;
 			free(curr);
-			return ;
+			break ;
 		}
 		prev = curr;
 		curr = curr->next;
@@ -74,16 +74,17 @@ char	*gnl_strldup(char const *src, size_t dstsize)
 	char	*dst;
 	size_t	i;
 
-	if (!src)
-		return (NULL);
 	dst = (char *)malloc(dstsize);
 	if (!dst)
 		return (NULL);
 	i = 0;
-	while (src[i] !='\0' && i + 1 < dstsize)
+	if (src != NULL)
 	{
-		dst[i] = src[i];
-		i++;
+		while (src[i] != '\0' && i + 1 < dstsize)
+		{
+			dst[i] = src[i];
+			i++;
+		}
 	}
 	dst[i] = '\0';
 	return (dst);
