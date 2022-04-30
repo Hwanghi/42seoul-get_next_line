@@ -1,159 +1,139 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line_bonus.c                              :+:      :+:    :+:   */
+/*   get_next_line.c                                    :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/03/27 21:39:47 by hehwang           #+#    #+#             */
-/*   Updated: 2022/03/29 22:58:58 by hehwang          ###   ########.fr       */
+/*   Created: 2022/04/07 14:29:34 by hehwang           #+#    #+#             */
+/*   Updated: 2022/04/30 18:29:04 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line_bonus.h"
 
-#define MODIFY 1
-#define NEWLINE 2
-
-typedef struct s_list
+char	*make_newline(t_list *lst)
 {
-	char			*str;
-	int				fd;
-	int				state;
-	struct s_list	*next;
-	struct s_list	*next_head;
-}	t_list;
+	char	*newline;
+	char	*tmp;
+	size_t	len;
 
-void free_all(t_list **head)
-{
-	if (head != NULL)
+	len = len_newline(lst->save);
+	tmp = lst->save;
+	newline = gnl_strldup(lst->save, len + 1);
+	if (!newline)
+		return (NULL);
+	lst->len -= len;
+	if (lst->len == 0)
+		lst->save = NULL;
+	else if (lst->len > 0)
 	{
-		while (*head != NULL)
+		lst->save = gnl_strldup(&(lst->save[len]), lst->len + 1);
+		if (!lst->save)
 		{
-			if ((*head)->str != NULL)
-				free((*head)->str);
-			tmp = (*head)->next;
-			free(*head);
-			*head = NULL;
-			*head = tmp;
+			free(tmp);
+			free(newline);
+			return (NULL);
 		}
 	}
+	free(tmp);
+	return (newline);
 }
 
-t_list	*gnl_newlst(char buf[], ssize_t len, int state)
+t_list	*find_or_new_fd(t_list **lst, int fd)
 {
-	t_list	*node;
-	ssize_t	i;
+	t_list	*curr;
 
-	node = (t_list *)malloc(sizeof(t_list) * 1);
-	if (!node)
-		return (NULL);
-	node->str = (char *)malloc(sizeof(char) * (len + 1));
-	if (!node->str)
+	if (*lst == NULL)
 	{
-		free(node);
-		return (NULL);
+		*lst = gnl_newlst(fd);
+		return (*lst);
 	}
-	i = -1;
-	while (++i < len)
-		node->str[i] = buf[i];
-	node->str[i] = '\0';
-	node->next = NULL;
-	return (node);
-}
-
-int	gnl_lstadd_back(t_list **head, t_list *new)
-{
-	t_list *tmp;
-
-	if (!new)
+	curr = *lst;
+	while (curr->fd != fd)
 	{
-		free_all(head);
-		return (0);
+		if (curr->next == NULL)
+		{
+			curr->next = gnl_newlst(fd);
+			return (curr->next);
+		}
+		curr = curr->next;
 	}
-	tmp = *head;
-	while (tmp->next != NULL)
-		tmp = tmp->next;
-	tmp->next = new;
-	return (1);
+	return (curr);
 }
 
-int	gnl_lstsplit_buf(t_list **head, char buf[], ssize_t read_bytes)
+void	*save_buf(t_list *lst, char *buf, size_t dstsize)
 {
-	ssize_t	i;
-	ssize_t	len;
+	char	*dst;
+	size_t	i;
 
+	if (!lst)
+		return (NULL);
+	dst = (char *)malloc(dstsize);
+	if (!dst)
+		return (NULL);
 	i = 0;
-	len = 0;
-	while (i + len < read_bytes)
+	if (lst->save != NULL)
 	{
-		if (buf[i + len] == '\n')
+		while (lst->save[i] != '\0')
 		{
-			if(!gnl_lstadd_back(head, gnl_newlst(&buf[i], ++len, NEWLINE)))
-				return (0);
-			i += len;
-			len = 0;
+			dst[i] = lst->save[i];
+			i++;
 		}
-		else
-			len++;
+		free(lst->save);
 	}
-	if (i < read_bytes)
-	{
-		new = gnl_newlst(&buf[i], len, MODIFY);
-		if(!gnl_lstadd_back(head, gnl_newlst(buf[i], len, NEWLINE)))
-			return (0);
-	}
-	return (1);
+	while (*buf != '\0')
+		dst[i++] = *buf++;
+	dst[i] = '\0';
+	lst->save = dst;
+	lst->len = i;
+	return (dst);
 }
 
-void	gnl_lstmodify(t_list **head)
+ssize_t	read_file(int fd, t_list *lst)
 {
-	t_list *new_line;
+	ssize_t	res;
+	char	*buf;
 
-	new_line = *head;
-	while (new_line)
+	buf = (char *)malloc(BUFFER_SIZE + 1);
+	if (!buf)
+		return (-1);
+	while (1)
 	{
-		if (new_line->state == NEW_LINE)
+		res = read(fd, buf, BUFFER_SIZE);
+		if (res <= 0)
 			break ;
-		new_line = new_line->next;
+		buf[res] = '\0';
+		if (!save_buf(lst, buf, lst->len + res + 1))
+		{
+			res = -1;
+			break ;
+		}
+		if (len_newline(lst->save) < lst->len)
+			break ;
+		if (lst->save[lst->len - 1] == '\n')
+			break ;
 	}
+	free(buf);
+	return (res);
 }
 
 char	*get_next_line(int fd)
 {
-	static t_list	*fd_lst;
-	t_list			*head;
-	char			buf[BUFFER_SIZE];
-	ssize_t			read_bytes;
+	static t_list	*fd_lst = NULL;
+	t_list			*curr;
+	ssize_t			res;
 
-	// find fd
-	head = find_fd(&fd_lst, fd);
-	if (!head)
-		head  = new_fd(&fd_lst, fd);
-	while (1)
-	{	
-		read_bytes = read(fd, buf, BUFFER_SIZE);
-		if (read_bytes < 0)
-			return (NULL);
-		if(read_bytes == 0 && !head->next)
-		{
-			del_fd(&fd_lst, fd);
-			return (NULL);
-		}
-		if (!gnl_lstsplit_buf(&head, buf, read_bytes))
-			return (NULL);
-		if (head->next->state == MODIFY)
-			modify(head);
-		if (head->next->state == NEWLINE)
-		{
-			// 노드 삭제 하고 free
-			return (pop(head));
-		}
+	if (fd < 0)
+		return (NULL);
+	curr = find_or_new_fd(&fd_lst, fd);
+	if (!curr)
+		return (NULL);
+	res = read_file(fd, curr);
+	if (res < 0 || (res == 0 && curr->save == NULL))
+	{
+		gnl_lstdelone(&fd_lst, fd);
+		return (NULL);
 	}
-	// fd head 추가
-	// lst pop 있으면 -> return
-	// 없으면
-	// read (pop 할 때 까지)
-	// set_lst (split -> add lst back);
-	// return ();
+	return (make_newline(curr));
 }

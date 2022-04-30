@@ -6,7 +6,7 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/03/27 20:40:05 by hehwang           #+#    #+#             */
-/*   Updated: 2022/03/27 21:32:24 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/04/30 18:30:09 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,16 +15,22 @@
 
 # include <stdlib.h>
 # include <unistd.h>
-# include <limits.h>
 
-int	is_newline(char *line);
-size_t	gnl_strlen(const char *s);
-char	*gnl_strndup(const char *s1, size_t n);
-char	*gnl_strjoin(char const *s1, char const *s2);
-size_t	find_end(char buf[]);
-void	flash_buf(char buf[], size_t end);
-void free_all(char *origin, char *add);
-char *make_newline(char *origin, char buf[]);
+typedef struct s_list {
+	int				fd;
+	char			*save;
+	size_t			len;
+	struct s_list	*next;
+}	t_list;
+
+size_t	len_newline(char const *s);
+char	*gnl_savebuf(t_list *lst, char *buf, size_t dstsize);
+char	*make_newline(t_list *lst);
+char	*gnl_strldup(char const *src, size_t dstsize);
+ssize_t	read_file(int fd, t_list *lst);
+t_list	*gnl_newlst(int fd);
+t_list	*find_or_new_fd(t_list **lst, int fd);
+void	gnl_lstdelone(t_list **lst, int fd);
 char	*get_next_line(int fd);
 
 #endif

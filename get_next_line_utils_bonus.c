@@ -1,94 +1,91 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   get_next_line_utils_bonus.c                        :+:      :+:    :+:   */
+/*   get_next_line_utils.c                              :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2022/03/27 21:39:18 by hehwang           #+#    #+#             */
-/*   Updated: 2022/03/27 21:39:20 by hehwang          ###   ########.fr       */
+/*   Created: 2022/04/07 14:27:10 by hehwang           #+#    #+#             */
+/*   Updated: 2022/04/30 18:29:26 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line_bonus.h"
 
-int	is_newline(char *line)
+size_t	len_newline(char const *s)
 {
-	if (!line)
-		return (0);
-	while (*line != '\0')
-	{
-		if (*line == '\n')
-			return (1);
-		line++;
-	}
-	return (0);
-}
-
-size_t	gnl_strlen(const char *s)
-{
-	size_t	len;
-
-	if (!s)
-		return (0);
-	len = 0;
-	while (s[len] != '\0')
-		len++;
-	return (len);
-}
-
-char	*gnl_strndup(const char *s1, size_t n)
-{
-	char	*dst;
 	size_t	i;
 
-	dst = (char *)malloc(sizeof(char) * (n));
-	if (!dst)
-		return (NULL);
 	i = 0;
-	while (i + 1 < n)
+	while (s[i] != '\0')
 	{
-		dst[i] = s1[i];
-		i++;
-	}
-	dst[i] = '\0';
-	return (dst);
-}
-
-char	*gnl_strjoin(char const *s1, char const *s2)
-{
-	char	*dst;
-	size_t	dstsize;
-	size_t	i;
-
-	dstsize = gnl_strlen(s1) + gnl_strlen(s2) + 1;
-	dst = (char *)malloc(sizeof(char) * (dstsize));
-	if (!dst)
-		return (NULL);
-	i = 0;
-	if (s1 != NULL)
-		while (*s1 != '\0')
-			dst[i++] = *s1++;
-	if (s2 != NULL)
-		while (*s2 != '\0')
-			dst[i++] = *s2++;
-	dst[i] = '\0';
-	return (dst);
-}
-
-size_t	find_end(char buf[])
-{
-	size_t i;
-
-	i = 0;
-	while (buf[i] && i < BUFFER_SIZE)
-	{
-		if (buf[i] == '\n')
+		if (s[i] == '\n')
 		{
 			i++;
-			return (i);
+			break ;
 		}
 		i++;
 	}
 	return (i);
+}
+
+t_list	*gnl_newlst(int fd)
+{
+	t_list	*lst;
+
+	lst = (t_list *)malloc(sizeof(t_list));
+	if (!lst)
+		return (NULL);
+	lst->fd = fd;
+	lst->save = NULL;
+	lst->len = 0;
+	lst->next = NULL;
+	return (lst);
+}
+
+void	gnl_lstdelone(t_list **lst, int fd)
+{
+	t_list	*prev;
+	t_list	*curr;
+
+	prev = NULL;
+	curr = *lst;
+	while (curr != NULL)
+	{
+		if (curr->fd == fd)
+		{
+			if (prev == NULL)
+				*lst = curr->next;
+			else
+				prev->next = curr->next;
+			if (curr->save != NULL)
+				free(curr->save);
+			curr->next = NULL;
+			free(curr);
+			break ;
+		}
+		prev = curr;
+		curr = curr->next;
+	}
+}
+
+char	*gnl_strldup(char const *src, size_t dstsize)
+{
+	char	*dst;
+	size_t	i;
+
+	dst = (char *)malloc(dstsize);
+	if (!dst)
+		return (NULL);
+	i = 0;
+	if (src != NULL)
+	{
+		while (src[i] != '\0' && i + 1 < dstsize)
+		{
+			dst[i] = src[i];
+			i++;
+		}
+	}
+	dst[i] = '\0';
+	return (dst);
 }
