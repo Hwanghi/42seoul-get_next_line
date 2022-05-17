@@ -6,13 +6,13 @@
 /*   By: hehwang <hehwang@student.42seoul.k>        +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/04/07 14:29:34 by hehwang           #+#    #+#             */
-/*   Updated: 2022/04/30 18:24:07 by hehwang          ###   ########.fr       */
+/*   Updated: 2022/05/17 15:49:58 by hehwang          ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 
-char	*make_newline(t_list *lst)
+static char	*make_newline(t_list *lst)
 {
 	char	*newline;
 	char	*tmp;
@@ -40,7 +40,7 @@ char	*make_newline(t_list *lst)
 	return (newline);
 }
 
-t_list	*find_or_new_fd(t_list **lst, int fd)
+static t_list	*find_or_new_fd(t_list **lst, int fd)
 {
 	t_list	*curr;
 
@@ -62,7 +62,7 @@ t_list	*find_or_new_fd(t_list **lst, int fd)
 	return (curr);
 }
 
-void	*save_buf(t_list *lst, char *buf, size_t dstsize)
+static void	*save_buf(t_list *lst, char *buf, size_t dstsize)
 {
 	char	*dst;
 	size_t	i;
@@ -90,7 +90,7 @@ void	*save_buf(t_list *lst, char *buf, size_t dstsize)
 	return (dst);
 }
 
-ssize_t	read_file(int fd, t_list *lst)
+static ssize_t	read_file(int fd, t_list *lst)
 {
 	ssize_t	res;
 	char	*buf;
@@ -120,7 +120,7 @@ ssize_t	read_file(int fd, t_list *lst)
 
 char	*get_next_line(int fd)
 {
-	static t_list	*fd_lst = NULL;
+	static t_list	*fd_lst;
 	t_list			*curr;
 	ssize_t			res;
 
